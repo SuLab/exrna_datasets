@@ -30,7 +30,7 @@ for ( file in files ){
 
    # just get multimapAdjustedReadCount column
    data[[sample]] <- data[[sample]][,.(ReferenceID,multimapAdjustedReadCount)]
-   colnames(data[[sample]])[2] <- paste(sample,colnames(data[[sample]])[2],sep="_")
+   colnames(data[[sample]])[2] <- sample
    
    setkey(data[[sample]],ReferenceID)
 }
@@ -63,4 +63,29 @@ if( grepl( "miRNA", type ) ){
 output[is.na(output)] <- 0
 
 # write output file
-write.table(output, paste("../results/",type,"_output.txt",sep=""), row.names=FALSE, sep="\t")
+write.table(round(output,digits=2), paste("../results/",type,"_output.txt",sep=""), row.names=FALSE, sep="\t")
+
+
+###
+### get metadata
+###
+
+# download metadata files
+set baseURL = "ftp://ftp.genboree.org/exRNA-atlas/grp/Extracellular%20RNA%20Atlas/db/exRNA%20Repository%20-%20hg19/file/exRNA-atlas/exceRptPipeline_v3.3.0/TPATE1-human-plasma-healthyVsCancer-2016-02-19/metadataFiles/"
+curl -o ../data/metadata_list.txt $baseURL
+foreach file (`grep biosample_Sample_ ../data/metadata_list.txt | gawk '{print $NF}'`)
+   echo $file
+   wget --directory-prefix=../tmp $baseURL/$file
+end
+
+# write metadata file
+set metadatafile = "../results/metadata.txt"
+/bin/rm $metadatafile;touch $metadatafile
+echo "\tsample_name\tdisease_state" >> $metadatafile
+@ i = 1
+foreach file (../tmp/biosample_Sample_*.tsv)
+   set sample = `echo $file | sed 's/.*Sample_//;s/\..*//'`
+   set disease = `grep '^-- Disease Type' $file | gawkt '{print $2}'`
+   echo $i"\t"$sample"\t"$disease >> ../results/metadata.txt
+   @ i = $i + 1
+end
