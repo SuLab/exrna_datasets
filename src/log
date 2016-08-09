@@ -73,7 +73,7 @@ write.table(round(output,digits=2), paste("../results/",type,"_output.txt",sep="
 # download metadata files
 set baseURL = "ftp://ftp.genboree.org/exRNA-atlas/grp/Extracellular%20RNA%20Atlas/db/exRNA%20Repository%20-%20hg19/file/exRNA-atlas/exceRptPipeline_v3.3.0/TPATE1-human-plasma-healthyVsCancer-2016-02-19/metadataFiles/"
 curl -o ../data/metadata_list.txt $baseURL
-foreach file (`grep biosample_Sample_ ../data/metadata_list.txt | gawk '{print $NF}'`)
+foreach file (`egrep "biosample_Sample_|BS.metadata" ../data/metadata_list.txt | gawk '{print $NF}'`)
    echo $file
    wget --directory-prefix=../tmp $baseURL/$file
 end
@@ -83,8 +83,13 @@ set metadatafile = "../results/metadata.txt"
 /bin/rm $metadatafile;touch $metadatafile
 echo "\tsample_name\tdisease_state" >> $metadatafile
 @ i = 1
-foreach file (../tmp/biosample_Sample_*.tsv)
+foreach file (../tmp/*metadata.tsv)
    set sample = `echo $file | sed 's/.*Sample_//;s/\..*//'`
+
+   : ### hack to fix metadata processing error -- see email from Sai Subramanian 2016-08-09
+   if( $sample == "" ) then
+     set sample = `echo $file | sed 's/.*LIB//;s/-BS.*//'`
+   endif
    set disease = `grep '^-- Disease Type' $file | gawkt '{print $2}'`
    echo $i"\t"$sample"\t"$disease >> ../results/metadata.txt
    @ i = $i + 1
